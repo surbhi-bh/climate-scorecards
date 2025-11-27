@@ -1,0 +1,2434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>China Climate Scorecard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/shapefile@0.6.6/dist/shapefile.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #F2ECE6;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            padding-top: 60px;
+        }
+
+        .header-strip {
+            background-color: #844F36;
+            color: white;
+            padding: 15px 30px;
+            position: fixed;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            zoom: 0.9;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: 'Poppins', sans-serif;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .header-btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        .sidebar {
+            width: 280px;
+            background-color: #F2ECE6;
+            min-height: calc(100vh - 60px);
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex-shrink: 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            margin-top: 0;
+            padding-top: 0px;
+            padding-bottom: 50px;
+            zoom: 0.75;
+        }
+
+        .sidebar-section {
+            border-bottom: 2px solid #D4C4B0;
+            padding: 10px 18px;
+            background-color: transparent;
+            margin: 10px 0;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .sidebar-section:first-child {
+            margin-top: 0;
+        }
+
+        .sidebar-section:last-child {
+            border-bottom: 2px solid #D4C4B0;
+            margin-bottom: 0;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 7px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #844F36;
+        }
+
+        .section-toggle {
+            font-size: 18px;
+            color: #844F36;
+            font-weight: bold;
+        }
+
+        .section-content {
+            margin-top: 7px;
+        }
+
+        .section-content.collapsed {
+            display: none;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 13px;
+            font-family: 'Poppins', sans-serif;
+            background-color: white;
+            text-align: center;
+            color: #999;
+        }
+
+        .search-input::placeholder {
+            color: #bbb;
+        }
+
+        .world-map-container {
+            width: 100%;
+            height: 150px;
+            background-color: #E8DED3;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #D4C4B0;
+        }
+
+        .world-map-container svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .world-country {
+            fill: #e8e8e8;
+            stroke: #fff;
+            stroke-width: 0.5;
+            cursor: pointer;
+            transition: fill 0.3s;
+            opacity: 0.6;
+        }
+
+        .world-country:hover {
+            opacity: 1;
+            stroke-width: 1;
+        }
+
+        .world-country.top-emitter {
+            fill: #d73027;
+            opacity: 1;
+        }
+
+        .world-country.medium-emitter {
+            fill: #fc8d59;
+            opacity: 1;
+        }
+
+        .world-country.low-emitter {
+            fill: #AAF08C;
+            opacity: 1;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .radio-item input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .radio-item label {
+            font-size: 14px;
+            color: #5A3825;
+            cursor: pointer;
+        }
+
+        .slider-container {
+            margin-top: 7px;
+        }
+
+        .slider-values {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .slider-input {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #D4C4B0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #844F36;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid #C2905F;
+        }
+
+        .slider-input::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #844F36;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid #C2905F;
+        }
+
+        .range-slider {
+            position: relative;
+            height: 6px;
+        }
+
+        .range-track {
+            position: absolute;
+            width: 100%;
+            height: 6px;
+            background: #D4C4B0;
+            border-radius: 3px;
+            top: 0;
+        }
+
+        .range-fill {
+            position: absolute;
+            height: 6px;
+            background: #844F36;
+            border-radius: 3px;
+            top: 0;
+        }
+
+        .range-slider input[type="range"] {
+            position: absolute;
+            width: 100%;
+            pointer-events: none;
+            -webkit-appearance: none;
+            background: transparent;
+            height: 6px;
+            top: 0;
+        }
+
+        .range-slider input[type="range"]::-webkit-slider-runnable-track {
+            height: 6px;
+            background: transparent;
+            border: none;
+        }
+
+        .range-slider input[type="range"]::-moz-range-track {
+            height: 6px;
+            background: transparent;
+            border: none;
+        }
+
+        .range-slider input[type="range"]::-webkit-slider-thumb {
+            pointer-events: all;
+            position: relative;
+            z-index: 3;
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #844F36;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid #C2905F;
+            margin-top: -6px;
+        }
+
+        .range-slider input[type="range"]::-moz-range-thumb {
+            pointer-events: all;
+            position: relative;
+            z-index: 3;
+            width: 18px;
+            height: 18px;
+            background: #844F36;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid #C2905F;
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            padding-bottom: 0;
+            height: calc(100vh - 60px);
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px 18px;
+            align-items: flex-start;
+            justify-content: center;
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            zoom: 0.95;
+            padding: 20px 15px 10px 15px;
+        }
+
+        .card {
+            width: 100%;
+            margin: 0;
+            background: white;
+            padding: 12px 14px;
+            border-radius: 7px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .collapsible-section {
+            overflow: visible;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-section.collapsed {
+            max-height: 0;
+            overflow: hidden;
+        }
+
+        .collapse-button {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 10px;
+            padding: 1px 1px;
+            margin: 0;
+        }
+
+        .collapse-button:hover {
+            color: #211e1e;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 5px;
+            position: relative;
+        }
+
+        .title-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0px;
+        }
+
+        .country-name-section {
+            display: flex;
+            align-items: flex-start;
+            gap: 0px;
+            margin-bottom: 0px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .country-name {
+            font-size: 17px;
+            font-weight: bold;
+            line-height: 1;
+            padding-top: 2px;
+            margin: 0;
+            padding-bottom: 0;
+        }
+
+        .country-map {
+            display: none;
+        }
+
+        .status-bubbles {
+            display: flex;
+            gap: 6px;
+            align-items: flex-start;
+            margin-bottom: 0px;
+            margin-top: 3px;
+        }
+
+        .bubble-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .bubble-label {
+            font-size: 8px;
+            font-weight: 500;
+            color: #262424;
+            text-align: center;
+            white-space: nowrap;
+            line-height: 1;
+            margin: 0;
+            padding: 0;
+        }
+
+        .bubble {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 0;
+            font-size: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .bubble img {
+            width: 19px;
+            height: 19px;
+        }
+
+        .target-year {
+            font-size: 13px;
+            font-weight: bold;
+            margin-left: 3px;
+            margin-top: 0;
+            margin-bottom: 0;
+            padding: 0;
+        }
+
+        .status-section {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .emitter-collapse-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .emitter-label {
+            font-size: 8px;
+            font-weight: 600;
+            color: white;
+            background-color: #d73027;
+            padding: 2px 6px;
+            border-radius: 2px;
+        }
+
+        .status-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ddd;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+            display: none;
+        }
+
+        .status-stripes {
+            display: flex;
+            flex-direction: row;
+            gap: 2px;
+            justify-content: flex-end;
+        }
+
+        .status-stripe {
+            width: 2px;
+            height: 20px;
+            border-radius: 1px;
+        }
+
+        .indicator-section {
+            margin-bottom: 0px;
+        }
+
+        .indicator-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            margin-bottom: 0px;
+            padding-bottom: 0px;
+            padding-right: 0px;
+            gap: 0px;
+        }
+
+        .indicator-label-container {
+            flex: 0 0 85px;
+            margin-right: auto;
+        }
+
+        .indicator-label {
+            font-size: 9px;
+            font-weight: bold;
+            margin-bottom: 1px;
+        }
+
+        .indicator-subtitle {
+            font-size: 7px;
+            color: #888;
+            font-weight: 400;
+        }
+
+        .chart-container {
+            flex: 0 0 100px;
+            height: 30px;
+            position: relative;
+            margin-left: 0px;
+            margin-right: 0px;
+        }
+
+        .radar-chart-container {
+            width: 70px;
+            height: 70px;
+            position: relative;
+        }
+
+        .trend-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-left: 5px;
+            min-width: 30px;
+            flex-shrink: 0;
+        }
+
+        .trend-icon {
+            font-size: 10px;
+            margin-bottom: 0px;
+        }
+
+        .trend-value {
+            font-size: 8px;
+            font-weight: 600;
+        }
+
+        .section-divider {
+            border-bottom: 1px solid #ddd;
+            margin: 0px 0;
+        }
+
+        .pledge-section {
+            margin: 2px 0;
+            display: flex;
+            gap: 5px;
+            align-items: flex-start;
+        }
+
+        .pledge-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .pledge-title {
+            font-size: 10px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .ndc-date {
+            font-size: 8px;
+            color: #666;
+            font-style: italic;
+            margin-top: 3px;
+            text-align: right;
+        }
+
+        .pledge-text {
+            font-size: 8px;
+            line-height: 1.3;
+            color: #333;
+        }
+
+        .quadrant-chart {
+            flex: 0 0 55px;
+            height: 55px;
+            position: relative;
+        }
+
+        .pledge-quadrant {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            border: 1px solid #999;
+        }
+
+        .pledge-quadrant.top-left {
+            top: 0;
+            left: 0;
+            border-right-width: 1px;
+            border-bottom-width: 1px;
+        }
+
+        .pledge-quadrant.top-right {
+            top: 0;
+            right: 0;
+            border-left-width: 1px;
+            border-bottom-width: 1px;
+        }
+
+        .pledge-quadrant.bottom-left {
+            bottom: 0;
+            left: 0;
+            border-right-width: 1px;
+            border-top-width: 1px;
+        }
+
+        .pledge-quadrant.bottom-right {
+            bottom: 0;
+            right: 0;
+            border-left-width: 1px;
+            border-top-width: 1px;
+        }
+
+        .pledge-dot {
+            width: 20px;
+            height: 20px;
+            background-color: #d73027;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .progress-section {
+            margin-top: 2px;
+            background-color: #f5f5f5;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .progress-title {
+            font-size: 7px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        svg {
+            overflow: visible;
+        }
+
+        .chart-container svg {
+            overflow: visible;
+        }
+
+        .area-positive {
+            fill: rgba(215, 48, 39, 0.5);
+        }
+
+        .area-negative {
+            fill: rgba(49, 163, 84, 0.5);
+        }
+
+        .line {
+            fill: none;
+            stroke: black;
+            stroke-width: 1;
+        }
+
+        .zero-line {
+            stroke: #999;
+            stroke-width: 0.5;
+        }
+
+        .area-trend {
+            opacity: 0.5;
+        }
+
+        .line-trend {
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .value-label {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* Summary Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: #F2ECE6;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            zoom: 0.85;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #D4C4B0;
+            padding-bottom: 10px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #844F36;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #844F36;
+            cursor: pointer;
+            padding: 0;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #5A3825;
+        }
+
+        .summary-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background-color: white;
+            border-radius: 6px;
+            border: 1px solid #D4C4B0;
+            transition: all 0.2s;
+        }
+
+        .summary-item:hover {
+            background-color: #FFF9F3;
+            border-color: #844F36;
+        }
+
+        .summary-country-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+        }
+
+        .summary-stripes {
+            display: flex;
+            gap: 2px;
+            margin-left: 12px;
+        }
+
+        .summary-stripe {
+            width: 7px;
+            height: 24px;
+            border-radius: 2px;
+        }
+
+        .modal-subtitle {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Strip -->
+    <div class="header-strip">
+        <div class="header-title">Climate Targets</div>
+        <div class="header-controls">
+            <button class="header-btn" id="summary-btn" onclick="showSummary()">Summary</button>
+            <button class="header-btn" id="toggle-all-btn" onclick="toggleAll()">Collapse All</button>
+        </div>
+    </div>
+
+    <!-- Summary Modal -->
+    <div class="modal-overlay" id="summary-modal" onclick="closeSummary(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modal-title">Summary</div>
+                    <div class="modal-subtitle" id="modal-subtitle"></div>
+                </div>
+                <button class="modal-close" onclick="closeSummary()">&times;</button>
+            </div>
+            <div id="summary-list"></div>
+        </div>
+    </div>
+
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+        <!-- Country Section -->
+        <div class="sidebar-section">
+            <div class="section-header" onclick="toggleSection('country')">
+                <div class="section-title">Country</div>
+                <div class="section-toggle" id="toggle-country">−</div>
+            </div>
+            <div class="section-content" id="content-country">
+                <input type="text" class="search-input" placeholder="Search countries" id="country-search" style="margin-bottom: 8px;">
+                <input type="text" class="search-input" placeholder="Compare with..." id="country-compare">
+            </div>
+        </div>
+
+        <!-- Emitter Category Section (with Map) -->
+        <div class="sidebar-section">
+            <div class="section-header" onclick="toggleSection('emitter')">
+                <div class="section-title">Emitter Category</div>
+                <div class="section-toggle" id="toggle-emitter">−</div>
+            </div>
+            <div class="section-content" id="content-emitter">
+                <div class="world-map-container" id="world-map" style="margin-bottom: 10px;"></div>
+                <div class="radio-group">
+                    <div class="radio-item">
+                        <input type="radio" name="emitter" id="top-emitters" value="top" checked>
+                        <label for="top-emitters">Top Emitters (Top 20)</label>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" name="emitter" id="medium-emitters" value="medium">
+                        <label for="medium-emitters">Medium Emitters (21-60)</label>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" name="emitter" id="low-emitters" value="low">
+                        <label for="low-emitters">Low Emitters (61+)</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GDP per Capita Section -->
+        <div class="sidebar-section">
+            <div class="section-header" onclick="toggleSection('gdp')">
+                <div class="section-title">GDP per capita (current USD)</div>
+                <div class="section-toggle" id="toggle-gdp">−</div>
+            </div>
+            <div class="section-content" id="content-gdp">
+                <div class="slider-container">
+                    <div class="slider-values">
+                        <span id="gdp-min-value">0</span>
+                        <span id="gdp-max-value">150,000</span>
+                    </div>
+                    <div class="range-slider" id="gdp-range-slider">
+                        <div class="range-track"></div>
+                        <div class="range-fill" id="gdp-range-fill"></div>
+                        <input type="range" class="slider-input range-min" min="0" max="150000" value="0" id="gdp-slider-min" step="100">
+                        <input type="range" class="slider-input range-max" min="0" max="150000" value="150000" id="gdp-slider-max" step="100">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Population Section -->
+        <div class="sidebar-section">
+            <div class="section-header" onclick="toggleSection('population')">
+                <div class="section-title">Population (in million)</div>
+                <div class="section-toggle" id="toggle-population">−</div>
+            </div>
+            <div class="section-content" id="content-population">
+                <div class="slider-container">
+                    <div class="slider-values">
+                        <span id="population-min-value">0</span>
+                        <span id="population-max-value">1,500</span>
+                    </div>
+                    <div class="range-slider" id="population-range-slider">
+                        <div class="range-track"></div>
+                        <div class="range-fill" id="population-range-fill"></div>
+                        <input type="range" class="slider-input range-min" min="0" max="1500" value="0" id="population-slider-min" step="1">
+                        <input type="range" class="slider-input range-max" min="0" max="1500" value="1500" id="population-slider-max" step="1">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+        <div class="cards-container" id="cards-container">
+        </div>
+    </div>
+
+    <script>
+        // Sidebar section toggle functionality
+        window.toggleSection = function(sectionId) {
+            const content = document.getElementById(`content-${sectionId}`);
+            const toggle = document.getElementById(`toggle-${sectionId}`);
+
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                toggle.textContent = '−';
+            } else {
+                content.classList.add('collapsed');
+                toggle.textContent = '+';
+            }
+        }
+
+        // Global data storage
+        let allTimeSeriesData = [];
+        let allQualData = [];
+        let allCards = [];
+        let avgReadiness = 0;
+        let avgVulnerability = 0;
+
+        // Filter state
+        let filters = {
+            searchText: '',
+            compareText: '',
+            emitterCategory: 'top',
+            gdpMin: 0,
+            gdpMax: 150000,
+            populationMin: 0,
+            populationMax: 1500
+        };
+
+        // Range slider handlers
+        function setupRangeSlider(minId, maxId, minValueId, maxValueId, fillId, filterMinKey, filterMaxKey) {
+            const minSlider = document.getElementById(minId);
+            const maxSlider = document.getElementById(maxId);
+            const minValueSpan = document.getElementById(minValueId);
+            const maxValueSpan = document.getElementById(maxValueId);
+            const rangeFill = document.getElementById(fillId);
+
+            const sliderMin = parseInt(minSlider.min);
+            const sliderMax = parseInt(minSlider.max);
+
+            function updateFill() {
+                let minVal = parseInt(minSlider.value);
+                let maxVal = parseInt(maxSlider.value);
+
+                if (minVal > maxVal) {
+                    [minVal, maxVal] = [maxVal, minVal];
+                    minSlider.value = minVal;
+                    maxSlider.value = maxVal;
+                }
+
+                // Calculate fill position and width
+                const minPercent = ((minVal - sliderMin) / (sliderMax - sliderMin)) * 100;
+                const maxPercent = ((maxVal - sliderMin) / (sliderMax - sliderMin)) * 100;
+
+                rangeFill.style.left = minPercent + '%';
+                rangeFill.style.width = (maxPercent - minPercent) + '%';
+
+                filters[filterMinKey] = minVal;
+                filters[filterMaxKey] = maxVal;
+
+                minValueSpan.textContent = minVal.toLocaleString();
+                maxValueSpan.textContent = maxVal.toLocaleString();
+
+                applyFilters();
+                colorWorldMap();
+            }
+
+            minSlider.addEventListener('input', updateFill);
+            maxSlider.addEventListener('input', updateFill);
+
+            // Initialize fill on page load
+            updateFill();
+        }
+
+        setupRangeSlider('gdp-slider-min', 'gdp-slider-max', 'gdp-min-value', 'gdp-max-value', 'gdp-range-fill', 'gdpMin', 'gdpMax');
+        setupRangeSlider('population-slider-min', 'population-slider-max', 'population-min-value', 'population-max-value', 'population-range-fill', 'populationMin', 'populationMax');
+
+        // Country search filter
+        document.getElementById('country-search').addEventListener('input', function() {
+            filters.searchText = this.value.toLowerCase();
+            applyFilters();
+            colorWorldMap();
+        });
+
+        // Country compare filter
+        document.getElementById('country-compare').addEventListener('input', function() {
+            filters.compareText = this.value.toLowerCase();
+            applyFilters();
+            colorWorldMap();
+        });
+
+        // Set default emitter category selection
+        window.addEventListener('DOMContentLoaded', function() {
+            const topEmittersRadio = document.getElementById('top-emitters');
+            if (topEmittersRadio) {
+                topEmittersRadio.checked = true;
+            }
+        });
+
+        // Emitter category filter
+        document.querySelectorAll('input[name="emitter"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                filters.emitterCategory = this.value;
+                console.log('Emitter category changed to:', this.value);
+                applyFilters();
+                colorWorldMap(); // Update map colors when category changes
+            });
+        });
+
+        // Apply all filters
+        function applyFilters() {
+            console.log('=== Applying filters ===');
+            console.log('Filter state:', filters);
+            console.log('Total cards:', allCards.length);
+
+            let visibleCount = 0;
+            let sampleLogged = 0;
+
+            allCards.forEach(card => {
+                const countryCode = card.code;
+                const qualDataItem = allQualData.find(d => d.Code === countryCode);
+
+                if (!qualDataItem) {
+                    console.log('No qual data for:', countryCode);
+                    card.element.style.display = 'none';
+                    return;
+                }
+
+                const timeSeriesForCountry = allTimeSeriesData.filter(d => d.Code === countryCode);
+
+                // Get latest GDP and population
+                const latestData = timeSeriesForCountry.length > 0
+                    ? timeSeriesForCountry[timeSeriesForCountry.length - 1]
+                    : { gdp_percapita: 0, population: 0 };
+
+                const gdp = parseFloat(latestData.gdp_percapita) || 0;
+                const population = parseFloat(latestData.population) || 0;
+                const rank = parseInt(qualDataItem.Rank) || 999;
+                const countryName = qualDataItem.Country.toLowerCase();
+
+                let visible = true;
+
+                // Log first 5 cards for debugging
+                if (sampleLogged < 5) {
+                    console.log(`Card ${sampleLogged + 1}: ${qualDataItem.Country}, Rank: ${rank}, Element:`, card.element ? 'OK' : 'MISSING');
+                    sampleLogged++;
+                }
+
+                // Handle search and compare together
+                if (filters.searchText && filters.compareText) {
+                    // If both search and compare are set, show only those two countries
+                    const matchesSearch = countryName.includes(filters.searchText);
+                    const matchesCompare = countryName.includes(filters.compareText);
+                    if (!matchesSearch && !matchesCompare) {
+                        visible = false;
+                    }
+                } else if (filters.searchText && !countryName.includes(filters.searchText)) {
+                    // If only search is set, show only matching countries
+                    visible = false;
+                }
+
+                // Filter by emitter category (only apply if no search text)
+                if (visible && !filters.searchText) {
+                    if (filters.emitterCategory === 'top' && rank > 20) {
+                        if (sampleLogged <= 5) {
+                            console.log(`  -> Hiding ${qualDataItem.Country}: rank ${rank} > 20`);
+                        }
+                        visible = false;
+                    } else if (filters.emitterCategory === 'medium' && (rank < 21 || rank > 60)) {
+                        visible = false;
+                    } else if (filters.emitterCategory === 'low' && rank < 61) {
+                        visible = false;
+                    } else if (sampleLogged <= 5) {
+                        console.log(`  -> Showing ${qualDataItem.Country}: rank ${rank} matches ${filters.emitterCategory}`);
+                    }
+                }
+
+                // Filter by GDP (only apply if no search text)
+                if (visible && !filters.searchText && gdp > 0) {
+                    if (gdp < filters.gdpMin || gdp > filters.gdpMax) {
+                        visible = false;
+                    }
+                }
+
+                // Filter by population (only apply if no search text)
+                if (visible && !filters.searchText && population > 0) {
+                    const populationInMillions = population / 1000000;
+                    if (populationInMillions < filters.populationMin || populationInMillions > filters.populationMax) {
+                        visible = false;
+                    }
+                }
+
+                if (visible) {
+                    visibleCount++;
+                }
+
+                // Set display style
+                if (card.element && card.element.style) {
+                    const displayValue = visible ? 'block' : 'none';
+                    card.element.style.display = displayValue;
+
+                    if (sampleLogged <= 5) {
+                        console.log(`  -> Setting display: ${displayValue} for ${qualDataItem.Country}`);
+                    }
+                } else {
+                    console.error('Card element is invalid:', card.code, card.element);
+                }
+            });
+
+            console.log('✓ Filter complete: Showing', visibleCount, 'out of', allCards.length, 'cards');
+            console.log('---');
+        }
+
+        // Normalize country names for better matching (from nav-bar.html)
+        function normalizeCountryName(name) {
+            const replacements = {
+                'united states': 'usa',
+                'united states of america': 'usa',
+                'uk': 'united kingdom',
+                'russia': 'russian federation',
+                'south korea': 'korea',
+                'north korea': 'korea',
+                'iran': 'iran',
+                'vietnam': 'viet nam',
+                'tanzania': 'united republic of tanzania',
+                'bolivia': 'plurinational state of bolivia',
+                'venezuela': 'bolivarian republic of venezuela',
+                'congo': 'democratic republic of the congo',
+                'ivory coast': "cote d'ivoire",
+                'czech republic': 'czechia',
+                'turkey': 'turkiye'
+            };
+
+            const normalized = name.toLowerCase().trim();
+            return replacements[normalized] || normalized;
+        }
+
+        // Find country data by name (from nav-bar.html logic)
+        function findCountryDataByName(geoName) {
+            if (!geoName) return null;
+
+            return allQualData.find(c => {
+                const dataName = c.Country.toLowerCase().replace(/[,'"]/g, '').trim();
+                const mapName = geoName.toLowerCase().replace(/[,'"]/g, '').trim();
+
+                return dataName === mapName ||
+                       dataName.includes(mapName) ||
+                       mapName.includes(dataName) ||
+                       normalizeCountryName(dataName) === normalizeCountryName(mapName);
+            });
+        }
+
+        // Load world map
+        async function loadWorldMap() {
+            try {
+                const source = await shapefile.open('copy_4.shp');
+                const features = [];
+
+                let result = await source.read();
+                while (!result.done) {
+                    features.push(result.value);
+                    result = await source.read();
+                }
+
+                if (features.length > 0) {
+                    const mapContainer = d3.select('#world-map');
+
+                    const width = 260;
+                    const height = 200;
+
+                    const svg = mapContainer.append('svg')
+                        .attr('width', width)
+                        .attr('height', height);
+
+                    const g = svg.append('g');
+
+                    const featureCollection = {
+                        type: 'FeatureCollection',
+                        features: features
+                    };
+
+                    // Use better scale and translate for proper zoom level (similar to nav-bar.html)
+                    const projection = d3.geoMercator()
+                        .scale(45)
+                        .translate([width / 2, height / 1.4]);
+
+                    const path = d3.geoPath().projection(projection);
+
+                    const paths = g.selectAll('path')
+                        .data(features)
+                        .enter()
+                        .append('path')
+                        .attr('d', path)
+                        .attr('class', 'world-country')
+                        .attr('data-country-name', d => {
+                            // Store country name instead of code
+                            return d.properties.NAME || d.properties.NAME_LONG || d.properties.ADMIN || '';
+                        })
+                        .on('click', function(event, d) {
+                            const countryName = d.properties.NAME || d.properties.NAME_LONG || d.properties.ADMIN;
+                            const countryData = findCountryDataByName(countryName);
+                            console.log('Map clicked:', countryName, '-> Found:', countryData?.Country);
+
+                            if (countryData) {
+                                // Filter to show only this country
+                                filters.searchText = '';
+                                filters.compareText = '';
+                                document.getElementById('country-search').value = countryData.Country;
+                                document.getElementById('country-compare').value = '';
+                                filters.searchText = countryData.Country.toLowerCase();
+                                applyFilters();
+                                colorWorldMap();
+                            }
+                        });
+
+                    // Debug: Log sample country names from map
+                    console.log('=== MAP DEBUG ===');
+                    console.log('First country properties:', features[0]?.properties);
+                    const sampleMapNames = features.slice(0, 10).map(f => {
+                        const name = f.properties.NAME || f.properties.NAME_LONG || f.properties.ADMIN;
+                        const matched = findCountryDataByName(name);
+                        return {
+                            shapeName: name,
+                            matchedTo: matched?.Country,
+                            matchedCode: matched?.Code
+                        };
+                    });
+                    console.log('Sample map matching:', sampleMapNames);
+
+                    // Color countries based on emitter category
+                    // colorWorldMap will be called after data loads
+                }
+            } catch (error) {
+                console.log('Error loading world map:', error);
+            }
+        }
+
+        // Color world map based on current filter - only color countries that are currently visible
+        function colorWorldMap() {
+            // Check if map is loaded
+            if (d3.selectAll('.world-country').size() === 0) {
+                console.log('Map not loaded yet, skipping coloring');
+                return;
+            }
+
+            // Get list of visible country codes
+            const visibleCountryCodes = new Set();
+            allCards.forEach(card => {
+                if (card.element && card.element.style.display !== 'none') {
+                    visibleCountryCodes.add(card.code);
+                }
+            });
+
+            console.log('Coloring map. Visible countries:', visibleCountryCodes.size);
+
+            let coloredCount = 0;
+            let matchedCount = 0;
+            let totalMapCountries = 0;
+
+            d3.selectAll('.world-country').each(function() {
+                totalMapCountries++;
+                const countryName = d3.select(this).attr('data-country-name');
+
+                // Find country data by name
+                const qualDataItem = findCountryDataByName(countryName);
+
+                // Remove all color classes first
+                d3.select(this)
+                    .classed('top-emitter', false)
+                    .classed('medium-emitter', false)
+                    .classed('low-emitter', false)
+                    .classed('highlighted', false);
+
+                if (qualDataItem) {
+                    matchedCount++;
+
+                    // Only color countries that are currently visible in the cards
+                    if (visibleCountryCodes.has(qualDataItem.Code)) {
+                        const rank = parseInt(qualDataItem.Rank) || 999;
+
+                        // Color based on emitter category
+                        if (rank <= 20) {
+                            d3.select(this).classed('top-emitter', true);
+                            coloredCount++;
+                            if (coloredCount <= 5) {
+                                console.log('  ✓ Coloring top emitter:', countryName, '->', qualDataItem.Country, 'rank:', rank);
+                            }
+                        } else if (rank >= 21 && rank <= 60) {
+                            d3.select(this).classed('medium-emitter', true);
+                            coloredCount++;
+                        } else if (rank >= 61 && rank < 999) {
+                            d3.select(this).classed('low-emitter', true);
+                            coloredCount++;
+                        }
+                    }
+                }
+            });
+            console.log('Map summary:', totalMapCountries, 'countries /', matchedCount, 'matched /', coloredCount, 'colored');
+        }
+
+        // Load both JSON files and initialize cards
+        Promise.all([
+            d3.json('dataset-time-series.json'),
+            d3.json('dataset-qual.json')
+        ]).then(([timeSeriesData, qualData]) => {
+            allTimeSeriesData = timeSeriesData;
+            allQualData = qualData;
+
+            console.log('Data loaded. Time series records:', timeSeriesData.length);
+            console.log('Qual data records:', qualData.length);
+
+            // Calculate average readiness and vulnerability
+            const validReadiness = qualData.filter(d => d.readiness && !isNaN(+d.readiness)).map(d => +d.readiness);
+            const validVulnerability = qualData.filter(d => d.vulnerability && !isNaN(+d.vulnerability)).map(d => +d.vulnerability);
+            avgReadiness = validReadiness.reduce((sum, val) => sum + val, 0) / validReadiness.length;
+            avgVulnerability = validVulnerability.reduce((sum, val) => sum + val, 0) / validVulnerability.length;
+            console.log('Average readiness:', avgReadiness.toFixed(2));
+            console.log('Average vulnerability:', avgVulnerability.toFixed(2));
+
+            // Auto-detect all countries from qualData
+            const countries = qualData.map(d => d.Code);
+            console.log('Creating cards for', countries.length, 'countries');
+
+            countries.forEach(countryCode => {
+                const cardElement = createCountryCard(countryCode, timeSeriesData, qualData);
+                const countryQualData = qualData.find(d => d.Code === countryCode);
+                if (cardElement && countryQualData) {
+                    allCards.push({
+                        code: countryCode,
+                        element: cardElement,
+                        qualData: countryQualData
+                    });
+                }
+            });
+
+            console.log('Created', allCards.length, 'cards');
+            console.log('Initial filter state:', filters);
+
+            // Apply initial filters immediately (default: top emitters)
+            applyFilters();
+
+            // Load world map AFTER cards are created and filtered
+            loadWorldMap().then(() => {
+                console.log('World map loaded, coloring map...');
+                colorWorldMap();
+            });
+        });
+
+        // Create a card for a specific country
+        function createCountryCard(countryCode, timeSeriesData, qualData) {
+            // Filter data for this country
+            let countryTimeSeriesData = timeSeriesData
+                .filter(d => d.Code === countryCode)
+                .map(d => ({
+                    ...d,
+                    Year: +d.Year,
+                    ghg_emission: +d.ghg_emission,
+                    ghg_per_capita: +d.ghg_per_capita,
+                    ghg_energy: +d.ghg_energy,
+                    emission_intensity_gdp: +d.emission_intensity_gdp,
+                    perc_renewable: +d.perc_renewable,
+                    perc_fossil: +d.perc_fossil,
+                    perc_nuclear: +d.perc_nuclear
+                }))
+                .sort((a, b) => a.Year - b.Year);
+
+            const countryQualData = qualData.find(d => d.Code === countryCode);
+
+            if (!countryQualData) return;
+
+            // If no time series data, create placeholder data
+            if (countryTimeSeriesData.length === 0) {
+                countryTimeSeriesData = [
+                    { Year: 2000, ghg_emission: 0, ghg_per_capita: 0, ghg_energy: 0, emission_intensity_gdp: 0,
+                      perc_renewable: 33, perc_fossil: 33, perc_nuclear: 33 },
+                    { Year: 2023, ghg_emission: 0, ghg_per_capita: 0, ghg_energy: 0, emission_intensity_gdp: 0,
+                      perc_renewable: 33, perc_fossil: 33, perc_nuclear: 33 }
+                ];
+            }
+
+            // Create card HTML
+            const cardId = `card-${countryCode}`;
+            const cardHTML = generateCardHTML(countryCode, countryQualData, cardId);
+
+            const cardsContainer = document.getElementById('cards-container');
+            const cardDiv = document.createElement('div');
+            cardDiv.innerHTML = cardHTML;
+            const cardElement = cardDiv.firstElementChild;
+            cardsContainer.appendChild(cardElement);
+
+            // Store trend colors for this card
+            const trendColors = [];
+
+            // Load country map
+            loadCountryMap(countryCode, cardId);
+
+            // Create charts
+            createYoYChart(`${cardId}-chart-ghg-emission`, 'ghg_emission', countryTimeSeriesData, `${cardId}-trend-ghg-emission`, trendColors);
+            createYoYChart(`${cardId}-chart-ghg-per-capita`, 'ghg_per_capita', countryTimeSeriesData, `${cardId}-trend-ghg-per-capita`, trendColors);
+            createYoYChart(`${cardId}-chart-ghg-energy`, 'ghg_energy', countryTimeSeriesData, `${cardId}-trend-ghg-energy`, trendColors);
+            createYoYChart(`${cardId}-chart-emission-intensity`, 'emission_intensity_gdp', countryTimeSeriesData, `${cardId}-trend-emission-intensity`, trendColors);
+
+            // Create radar charts for energy mix
+            const energyMix2000 = createRadarChart(`${cardId}-radar-2000`, countryTimeSeriesData, 2000);
+            const energyMix2023 = createRadarChart(`${cardId}-radar-2023`, countryTimeSeriesData, 2023);
+
+            // Stripe 5: Energy mix - fossil down = green, else red
+            if (energyMix2000 && energyMix2023) {
+                const fossilDecreased = energyMix2023.fossil < energyMix2000.fossil;
+                const energyMixColor = fossilDecreased ? '#1a9850' : '#d73027';
+                trendColors.push(energyMixColor);
+            } else {
+                trendColors.push('#cccccc'); // Grey for missing data
+            }
+
+            // Stripe 6: Readiness - below average = red, above/equal = green
+            const readiness = +countryQualData.readiness;
+            if (!isNaN(readiness)) {
+                const readinessColor = readiness >= avgReadiness ? '#1a9850' : '#d73027';
+                trendColors.push(readinessColor);
+            } else {
+                trendColors.push('#cccccc'); // Grey for missing data
+            }
+
+            // Stripe 7: Vulnerability - above average = red, below/equal = green
+            const vulnerability = +countryQualData.vulnerability;
+            if (!isNaN(vulnerability)) {
+                const vulnerabilityColor = vulnerability <= avgVulnerability ? '#1a9850' : '#d73027';
+                trendColors.push(vulnerabilityColor);
+            } else {
+                trendColors.push('#cccccc'); // Grey for missing data
+            }
+
+            // Create status stripes (7 total)
+            setTimeout(() => {
+                const stripesContainer = document.getElementById(`${cardId}-status-stripes`);
+                stripesContainer.innerHTML = '';
+                trendColors.forEach(color => {
+                    const stripe = document.createElement('div');
+                    stripe.className = 'status-stripe';
+                    stripe.style.backgroundColor = color;
+                    stripesContainer.appendChild(stripe);
+                });
+            }, 100);
+
+            // Add pledge text
+            const pledgeContainer = document.getElementById(`${cardId}-pledge-text-container`);
+            pledgeContainer.innerHTML = `<div class="pledge-text">${countryQualData.pledge}</div>`;
+
+            // Create quadrant chart
+            createQuadrantChart(`${cardId}-quadrant-chart`, +countryQualData.readiness, +countryQualData.vulnerability);
+
+            // Initialize expanded state (cards start expanded by default)
+            // No initialization needed as flex: 1 is set in CSS
+
+            // Return the card element for filtering
+            return cardElement;
+        }
+
+        // Function to get rank color - red for top 10, gradient to green for rest
+        function getRankColor(rank) {
+            const rankNum = parseInt(rank);
+            if (isNaN(rankNum)) return '#cccccc';
+
+            if (rankNum <= 10) {
+                // Top 10: solid red
+                return '#d73027';
+            } else if (rankNum <= 30) {
+                // 11-30: gradient from red to orange
+                const factor = (rankNum - 10) / 20;
+                return `rgb(${215 + (factor * 40)}, ${48 + (factor * 102)}, ${39 - (factor * 10)})`;
+            } else if (rankNum <= 60) {
+                // 31-60: gradient from orange to yellow
+                const factor = (rankNum - 30) / 30;
+                return `rgb(${255}, ${150 + (factor * 80)}, ${29 + (factor * 51)})`;
+            } else {
+                // 61+: gradient from yellow to light green
+                const factor = Math.min((rankNum - 60) / 60, 1);
+                return `rgb(${255 - (factor * 85)}, ${230 + (factor * 10)}, ${80 + (factor * 60)})`;
+            }
+        }
+
+        // Function to format date from MM/DD/YYYY to "Month DD, YYYY"
+        function formatDate(dateStr) {
+            if (!dateStr || dateStr === '#N/A') return '';
+            const parts = dateStr.split('/');
+            if (parts.length !== 3) return '';
+
+            const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+            const month = parseInt(parts[0]) - 1;
+            const day = parseInt(parts[1]);
+            const year = parts[2];
+
+            if (month >= 0 && month < 12) {
+                return `${months[month]} ${day}, ${year}`;
+            }
+            return '';
+        }
+
+        // List of countries with progress data (dumbbell chart)
+        const countriesWithProgress = [
+            'Russia', 'China', 'South Korea', 'Turkey', 'Mexico', 'Japan',
+            'Indonesia', 'United States', 'Argentina', 'Canada', 'Saudi Arabia',
+            'India', 'United Kingdom', 'European Union', 'Brazil', 'Australia',
+            'Germany', 'South Africa'
+        ];
+
+        // Generate HTML for a country card
+        function generateCardHTML(countryCode, qualData, cardId) {
+            const rankSuffix = qualData.Rank == 1 ? 'st' : (qualData.Rank == 2 ? 'nd' : (qualData.Rank == 3 ? 'rd' : 'th'));
+            const rankColor = getRankColor(qualData.Rank);
+            const formattedDate = formatDate(qualData.date);
+            const hasProgressData = countriesWithProgress.includes(qualData.Country);
+            return `
+                <div class="card" id="${cardId}">
+                    <div class="header">
+                        <div class="title-section">
+                            <div class="country-name-section">
+                                <div class="country-name">${qualData.Country}</div>
+                                <svg class="country-map" id="${cardId}-country-map" viewBox="0 0 200 200"></svg>
+                            </div>
+                            <div class="status-bubbles">
+                                <div class="bubble-container">
+                                    <div class="bubble-label">Paris</div>
+                                    <div class="bubble">
+                                        ${qualData.Paris === 'Y' || qualData.Paris === 'M' ? '<img src="tick.svg" alt="Yes">' : qualData.Paris === 'N' ? '<img src="cross.svg" alt="No">' : '-'}
+                                    </div>
+                                </div>
+                                <div class="bubble-container">
+                                    <div class="bubble-label">Latest NDC</div>
+                                    <div class="bubble">
+                                        <img src="${qualData.NDC === 'Y' ? 'tick.svg' : 'cross.svg'}" alt="${qualData.NDC === 'Y' ? 'Yes' : 'No'}">
+                                    </div>
+                                </div>
+                                <div class="bubble-container">
+                                    <div class="bubble-label">LTS</div>
+                                    <div class="bubble">
+                                        <img src="${qualData.LTS === 'Y' ? 'tick.svg' : 'cross.svg'}" alt="${qualData.LTS === 'Y' ? 'Yes' : 'No'}">
+                                    </div>
+                                </div>
+                                <div class="bubble-container">
+                                    <div class="bubble-label">Net-Zero</div>
+                                    <div class="bubble">
+                                        <img src="${qualData['Net Zero'] === 'Y' ? 'tick.svg' : 'cross.svg'}" alt="${qualData['Net Zero'] === 'Y' ? 'Yes' : 'No'}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="status-section">
+                            <div class="emitter-collapse-row">
+                                <button class="collapse-button" id="${cardId}-collapse-btn" onclick="toggleCollapse('${cardId}')">▲</button>
+                                <div class="emitter-label" style="background-color: ${rankColor}; color: white; padding: 2px 6px; border-radius: 3px;">${qualData.Rank}${rankSuffix} largest emitter</div>
+                            </div>
+                            <div class="status-title">Status</div>
+                            <div class="status-stripes" id="${cardId}-status-stripes"></div>
+                        </div>
+                    </div>
+
+                    <div class="collapsible-section" id="${cardId}-collapsible-content">
+                        <div class="indicator-section">
+                            <div class="indicator-row">
+                                <div class="indicator-label-container">
+                                    <div class="indicator-label">GHG emissions</div>
+                                    <div class="indicator-subtitle">Change in emissions</div>
+                                </div>
+                                <div class="chart-container" id="${cardId}-chart-ghg-emission"></div>
+                                <div class="trend-section" id="${cardId}-trend-ghg-emission"></div>
+                            </div>
+                            <div class="indicator-row">
+                                <div class="indicator-label-container">
+                                    <div class="indicator-label">GHG emissions per capita</div>
+                                    <div class="indicator-subtitle">Change in emissions per person</div>
+                                </div>
+                                <div class="chart-container" id="${cardId}-chart-ghg-per-capita"></div>
+                                <div class="trend-section" id="${cardId}-trend-ghg-per-capita"></div>
+                            </div>
+                            <div class="indicator-row">
+                                <div class="indicator-label-container">
+                                    <div class="indicator-label">GHG emissions - energy</div>
+                                    <div class="indicator-subtitle">Energy sector emissions</div>
+                                </div>
+                                <div class="chart-container" id="${cardId}-chart-ghg-energy"></div>
+                                <div class="trend-section" id="${cardId}-trend-ghg-energy"></div>
+                            </div>
+                            <div class="indicator-row" style="border-bottom: 2px solid #ddd; padding-bottom: 2px;">
+                                <div class="indicator-label-container">
+                                    <div class="indicator-label">Emission intensity</div>
+                                    <div class="indicator-subtitle">Emissions per GDP unit</div>
+                                </div>
+                                <div class="chart-container" id="${cardId}-chart-emission-intensity"></div>
+                                <div class="trend-section" id="${cardId}-trend-emission-intensity"></div>
+                            </div>
+                        </div>
+
+                        <div class="indicator-section" style="margin-top: 2px; border-bottom: 2px solid #ddd; padding-bottom: 2px;">
+                            <div class="indicator-row">
+                                <div class="indicator-label-container">
+                                    <div class="indicator-label">Energy mix</div>
+                                    <div class="indicator-subtitle">Fossil, Nuclear, Renewable</div>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex: 1; justify-content: flex-end; align-items: center;">
+                                    <div class="radar-chart-container" id="${cardId}-radar-2000"></div>
+                                    <div class="radar-chart-container" id="${cardId}-radar-2023"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pledge-section">
+                        <div class="pledge-content">
+                            <div class="pledge-title">NDC pledge</div>
+                            <div class="pledge-text-container" id="${cardId}-pledge-text-container">
+                            </div>
+                            ${formattedDate ? `<div class="ndc-date">${formattedDate}</div>` : ''}
+                        </div>
+                        <div class="quadrant-chart" id="${cardId}-quadrant-chart"></div>
+                    </div>
+
+                    <div class="progress-section">
+                        <div class="progress-title">Progress: ${hasProgressData ? 'Distance from Paris goals' : 'TBA'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Collapse/Expand functionality
+        window.toggleCollapse = function(cardId) {
+            const content = document.getElementById(`${cardId}-collapsible-content`);
+            const button = document.getElementById(`${cardId}-collapse-btn`);
+
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                button.textContent = '▲';
+            } else {
+                content.classList.add('collapsed');
+                button.textContent = '▼';
+            }
+        }
+
+        // Toggle all cards between expanded and collapsed
+        let allExpanded = true; // Start with all expanded (default state)
+
+        window.toggleAll = function() {
+            const allContents = document.querySelectorAll('.collapsible-section');
+            const allButtons = document.querySelectorAll('.collapse-button');
+            const toggleBtn = document.getElementById('toggle-all-btn');
+
+            if (allExpanded) {
+                // Collapse all
+                allContents.forEach(content => {
+                    content.classList.add('collapsed');
+                });
+                allButtons.forEach(button => {
+                    button.textContent = '▼';
+                });
+                toggleBtn.textContent = 'Expand All';
+                allExpanded = false;
+            } else {
+                // Expand all
+                allContents.forEach(content => {
+                    content.classList.remove('collapsed');
+                });
+                allButtons.forEach(button => {
+                    button.textContent = '▲';
+                });
+                toggleBtn.textContent = 'Collapse All';
+                allExpanded = true;
+            }
+        }
+
+        // Calculate status stripes for a country
+        function calculateStatusStripes(countryCode, qualData) {
+            const stripeColors = [];
+
+            // Get time series data for this country
+            const countryTimeSeriesData = allTimeSeriesData.filter(d => d.Code === countryCode);
+            if (countryTimeSeriesData.length === 0) {
+                // No data - return 7 grey stripes
+                return Array(7).fill('#cccccc');
+            }
+
+            // Sort by year
+            countryTimeSeriesData.sort((a, b) => a.Year - b.Year);
+
+            // Calculate YoY trends for each metric
+            const metrics = ['ghg_emission', 'ghg_per_capita', 'ghg_energy', 'emission_intensity_gdp'];
+
+            metrics.forEach(metric => {
+                const values = countryTimeSeriesData
+                    .map(d => ({ year: +d.Year, value: +d[metric] }))
+                    .filter(d => !isNaN(d.value) && d.value !== 0);
+
+                if (values.length < 2) {
+                    stripeColors.push('#cccccc');
+                    return;
+                }
+
+                // Calculate year-over-year change for last available year
+                const lastValue = values[values.length - 1].value;
+                const prevValue = values[values.length - 2].value;
+                const yoyChange = ((lastValue - prevValue) / prevValue) * 100;
+
+                // Determine color
+                const isZero = Math.abs(yoyChange) < 0.05;
+                let color;
+                if (isZero) {
+                    color = '#ffd43b'; // Yellow
+                } else {
+                    color = yoyChange >= 0 ? '#d73027' : '#1a9850';
+                }
+                stripeColors.push(color);
+            });
+
+            // Stripe 5: Energy mix - fossil down = green
+            const data2000 = countryTimeSeriesData.find(d => d.Year == 2000);
+            const data2023 = countryTimeSeriesData.find(d => d.Year == 2023);
+            if (data2000 && data2023 && data2000.perc_fossil && data2023.perc_fossil) {
+                const fossilDecreased = +data2023.perc_fossil < +data2000.perc_fossil;
+                stripeColors.push(fossilDecreased ? '#1a9850' : '#d73027');
+            } else {
+                stripeColors.push('#cccccc');
+            }
+
+            // Stripe 6: Readiness - below average = red
+            const readiness = +qualData.readiness;
+            if (!isNaN(readiness) && avgReadiness > 0) {
+                stripeColors.push(readiness >= avgReadiness ? '#1a9850' : '#d73027');
+            } else {
+                stripeColors.push('#cccccc');
+            }
+
+            // Stripe 7: Vulnerability - above average = red
+            const vulnerability = +qualData.vulnerability;
+            if (!isNaN(vulnerability) && avgVulnerability > 0) {
+                stripeColors.push(vulnerability <= avgVulnerability ? '#1a9850' : '#d73027');
+            } else {
+                stripeColors.push('#cccccc');
+            }
+
+            return stripeColors;
+        }
+
+        // Show summary modal
+        window.showSummary = function() {
+            console.log('showSummary called');
+            console.log('allCards length:', allCards.length);
+
+            const modal = document.getElementById('summary-modal');
+            const summaryList = document.getElementById('summary-list');
+            const modalSubtitle = document.getElementById('modal-subtitle');
+
+            // Get visible cards based on current filters
+            const visibleCards = allCards.filter(card => {
+                if (!card.element || !card.element.style) return false;
+                return card.element.style.display !== 'none';
+            });
+
+            console.log('visibleCards length:', visibleCards.length);
+
+            // Determine category label
+            let categoryLabel = 'All Countries';
+            if (filters.searchText) {
+                categoryLabel = `Search: "${filters.searchText}"`;
+            } else if (filters.compareText) {
+                categoryLabel = `Compare: "${filters.compareText}"`;
+            } else {
+                switch(filters.emitterCategory) {
+                    case 'top':
+                        categoryLabel = 'Top Emitters (Top 20)';
+                        break;
+                    case 'medium':
+                        categoryLabel = 'Medium Emitters (21-60)';
+                        break;
+                    case 'low':
+                        categoryLabel = 'Low Emitters (61+)';
+                        break;
+                }
+            }
+
+            modalSubtitle.textContent = `${categoryLabel}`;
+
+            // Calculate stripes and count red ones for sorting
+            const cardsWithStripes = visibleCards.map(card => {
+                const qualData = card.qualData;
+                const stripeColors = calculateStatusStripes(card.code, qualData);
+                const redCount = stripeColors.filter(color => color === '#d73027').length;
+                return {
+                    qualData,
+                    stripeColors,
+                    redCount
+                };
+            });
+
+            // Sort by red stripe count (descending)
+            cardsWithStripes.sort((a, b) => b.redCount - a.redCount);
+
+            // Generate summary items
+            summaryList.innerHTML = '';
+            cardsWithStripes.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'summary-item';
+
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'summary-country-name';
+                nameDiv.textContent = item.qualData.Country;
+
+                const stripesDiv = document.createElement('div');
+                stripesDiv.className = 'summary-stripes';
+
+                item.stripeColors.forEach(color => {
+                    const stripe = document.createElement('div');
+                    stripe.className = 'summary-stripe';
+                    stripe.style.backgroundColor = color;
+                    stripesDiv.appendChild(stripe);
+                });
+
+                itemDiv.appendChild(nameDiv);
+                itemDiv.appendChild(stripesDiv);
+                summaryList.appendChild(itemDiv);
+            });
+
+            modal.classList.add('active');
+        }
+
+        // Close summary modal
+        window.closeSummary = function(event) {
+            const modal = document.getElementById('summary-modal');
+            modal.classList.remove('active');
+        }
+
+        // Load country map from shapefile - Disabled (maps removed)
+        async function loadCountryMap(countryCode, cardId) {
+            // Country maps are disabled - do nothing
+            return;
+        }
+
+        // Create YoY % change chart (for GHG indicators)
+        function createYoYChart(containerId, variable, data, trendId, trendColors) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            const margin = { top: 3, right: 0, bottom: 3, left: 15 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            // Calculate YoY % change
+            const yoyData = [];
+            for (let i = 1; i < data.length; i++) {
+                if (data[i][variable] && data[i-1][variable]) {
+                        const yoy = ((data[i][variable] / data[i-1][variable]) - 1) * 100;
+                        yoyData.push({
+                            year: data[i].Year,
+                            yoy: yoy
+                        });
+                    }
+                }
+
+                if (yoyData.length === 0) return;
+
+                // Create smooth spline interpolation using D3
+                const splinePoints = yoyData.map(d => ({ year: d.year, yoy: d.yoy }));
+
+                const svg = d3.select(container)
+                    .append('svg')
+                    .attr('width', width)
+                    .attr('height', height)
+                    .append('g')
+                    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+                const x = d3.scaleLinear()
+                    .domain(d3.extent(splinePoints, d => d.year))
+                    .range([0, chartWidth]);
+
+                const yExtent = d3.extent(splinePoints, d => d.yoy);
+                const yMax = Math.max(Math.abs(yExtent[0]), Math.abs(yExtent[1]));
+                const y = d3.scaleLinear()
+                    .domain([-yMax, yMax])
+                    .range([chartHeight, 0]);
+
+                // Split into positive and negative areas
+                const positiveArea = d3.area()
+                    .x(d => x(d.year))
+                    .y0(y(0))
+                    .y1(d => y(Math.max(0, d.yoy)))
+                    .curve(d3.curveCatmullRom.alpha(0.5));
+
+                const negativeArea = d3.area()
+                    .x(d => x(d.year))
+                    .y0(y(0))
+                    .y1(d => y(Math.min(0, d.yoy)))
+                    .curve(d3.curveCatmullRom.alpha(0.5));
+
+                // Draw areas
+                svg.append('path')
+                    .datum(splinePoints)
+                    .attr('class', 'area-positive')
+                    .attr('d', positiveArea);
+
+                svg.append('path')
+                    .datum(splinePoints)
+                    .attr('class', 'area-negative')
+                    .attr('d', negativeArea);
+
+                // Zero line
+                svg.append('line')
+                    .attr('class', 'zero-line')
+                    .attr('x1', 0)
+                    .attr('x2', chartWidth)
+                    .attr('y1', y(0))
+                    .attr('y2', y(0));
+
+                // Draw line
+                const line = d3.line()
+                    .x(d => x(d.year))
+                    .y(d => y(d.yoy))
+                    .curve(d3.curveCatmullRom.alpha(0.5));
+
+                svg.append('path')
+                    .datum(splinePoints)
+                    .attr('class', 'line')
+                    .attr('d', line);
+
+                // Add y-axis values without axis line
+                const yTicks = [yMax, 0, -yMax];
+                yTicks.forEach(tick => {
+                    svg.append('text')
+                        .attr('x', -3)
+                        .attr('y', y(tick))
+                        .attr('text-anchor', 'end')
+                        .attr('alignment-baseline', 'middle')
+                        .attr('font-size', '6px')
+                        .attr('fill', '#999')
+                        .text(tick > 0 ? `+${tick.toFixed(0)}%` : `${tick.toFixed(0)}%`);
+                });
+
+                // Add first and last year labels
+                const firstYear = splinePoints[0].year;
+                const lastYear = splinePoints[splinePoints.length - 1].year;
+
+                svg.append('text')
+                    .attr('x', 0)
+                    .attr('y', chartHeight + 3)
+                    .attr('font-size', '7px')
+                    .attr('fill', '#666')
+                    .text(Math.round(firstYear));
+
+                svg.append('text')
+                    .attr('x', chartWidth)
+                    .attr('y', chartHeight + 3)
+                    .attr('text-anchor', 'end')
+                    .attr('font-size', '7px')
+                    .attr('fill', '#666')
+                    .text(Math.round(lastYear));
+
+                // Add black dot at last value point
+                const lastPoint = splinePoints[splinePoints.length - 1];
+                svg.append('circle')
+                    .attr('cx', x(lastPoint.year))
+                    .attr('cy', y(lastPoint.yoy))
+                    .attr('r', 1.5)
+                    .attr('fill', 'black');
+
+                // Add label at end (removed from chart)
+                // Check if value is 0.0% - make it yellow
+                const isZero = Math.abs(lastPoint.yoy) < 0.05; // Close to 0.0%
+                let labelColor;
+                if (isZero) {
+                    labelColor = '#ffd43b'; // Yellow
+                } else {
+                    labelColor = lastPoint.yoy >= 0 ? '#d73027' : '#1a9850';
+                }
+                const trendDirection = lastPoint.yoy >= 0 ? 'up' : 'down';
+
+                // Add trend indicator in separate section
+                if (trendId) {
+                    const trendSection = document.getElementById(trendId);
+                    let icon;
+                    if (isZero) {
+                        icon = '●'; // Yellow dot for 0.0%
+                    } else {
+                        icon = trendDirection === 'up' ? '▲' : '▼';
+                    }
+                    const sign = lastPoint.yoy >= 0 ? '+' : '';
+
+                    trendSection.innerHTML = `
+                        <div class="trend-icon" style="color: ${labelColor}">${icon}</div>
+                        <div class="trend-value" style="color: ${labelColor}">${sign}${lastPoint.yoy.toFixed(1)}%</div>
+                    `;
+
+                    // Store color for status stripe
+                    trendColors.push(labelColor);
+                }
+
+                return lastPoint.yoy;
+        }
+
+        // Create percentage trend chart (for energy mix)
+        function createPercentageChart(containerId, variable, data, trendId, trendColors) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            const margin = { top: 3, right: 0, bottom: 3, left: 15 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            // Filter out null values
+            const filteredData = data.filter(d => d[variable] != null && !isNaN(d[variable]));
+            if (filteredData.length === 0) return;
+
+                // Create smooth spline using D3
+                const splinePoints = filteredData.map(d => ({ year: d.Year, value: d[variable] }));
+
+                const startVal = splinePoints[0].value;
+                const endVal = splinePoints[splinePoints.length - 1].value;
+                const trendDown = endVal < startVal;
+
+                let color;
+                // Check if end value is 0.0% - make it yellow
+                if (endVal < 0.05) {
+                    color = '#ffd43b'; // Yellow for 0.0%
+                } else if (variable === 'perc_fossil') {
+                    color = trendDown ? '#1a9850' : '#d73027';
+                } else if (variable === 'perc_renewable') {
+                    color = trendDown ? '#d73027' : '#1a9850';
+                } else if (variable === 'perc_nuclear') {
+                    color = trendDown ? '#1a9850' : '#d73027';
+                }
+
+                const svg = d3.select(container)
+                    .append('svg')
+                    .attr('width', width)
+                    .attr('height', height)
+                    .append('g')
+                    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+                const x = d3.scaleLinear()
+                    .domain(d3.extent(splinePoints, d => d.year))
+                    .range([0, chartWidth]);
+
+                const y = d3.scaleLinear()
+                    .domain([0, 100])
+                    .range([chartHeight, 0]);
+
+                // Draw area
+                const area = d3.area()
+                    .x(d => x(d.year))
+                    .y0(chartHeight)
+                    .y1(d => y(d.value))
+                    .curve(d3.curveCatmullRom.alpha(0.5));
+
+                svg.append('path')
+                    .datum(splinePoints)
+                    .attr('fill', color)
+                    .attr('opacity', 0.4)
+                    .attr('d', area);
+
+                // Draw line
+                const line = d3.line()
+                    .x(d => x(d.year))
+                    .y(d => y(d.value))
+                    .curve(d3.curveCatmullRom.alpha(0.5));
+
+                svg.append('path')
+                    .datum(splinePoints)
+                    .attr('fill', 'none')
+                    .attr('stroke', color)
+                    .attr('stroke-width', 2)
+                    .attr('d', line);
+
+                // Add y-axis values without axis line (0-100% scale)
+                const yTicks = [100, 50, 0];
+                yTicks.forEach(tick => {
+                    svg.append('text')
+                        .attr('x', -3)
+                        .attr('y', y(tick))
+                        .attr('text-anchor', 'end')
+                        .attr('alignment-baseline', 'middle')
+                        .attr('font-size', '6px')
+                        .attr('fill', '#999')
+                        .text(`${tick}%`);
+                });
+
+                // Add first and last year labels
+                const firstYear = splinePoints[0].year;
+                const lastYear = splinePoints[splinePoints.length - 1].year;
+
+                svg.append('text')
+                    .attr('x', 0)
+                    .attr('y', chartHeight + 3)
+                    .attr('font-size', '7px')
+                    .attr('fill', '#666')
+                    .text(Math.round(firstYear));
+
+                svg.append('text')
+                    .attr('x', chartWidth)
+                    .attr('y', chartHeight + 3)
+                    .attr('text-anchor', 'end')
+                    .attr('font-size', '7px')
+                    .attr('fill', '#666')
+                    .text(Math.round(lastYear));
+
+                // Add black dot at last value point
+                const lastPoint = splinePoints[splinePoints.length - 1];
+                svg.append('circle')
+                    .attr('cx', x(lastPoint.year))
+                    .attr('cy', y(lastPoint.value))
+                    .attr('r', 1.5)
+                    .attr('fill', 'black');
+
+                // Add label at end (removed from chart)
+                const isZero = endVal < 0.05; // Close to 0.0%
+                const trendDirection = trendDown ? 'down' : 'up';
+
+                // Add trend indicator in separate section
+                if (trendId) {
+                    const trendSection = document.getElementById(trendId);
+                    let icon;
+                    if (isZero) {
+                        icon = '●'; // Yellow dot for 0.0%
+                    } else {
+                        icon = trendDirection === 'up' ? '▲' : '▼';
+                    }
+
+                    trendSection.innerHTML = `
+                        <div class="trend-icon" style="color: ${color}">${icon}</div>
+                        <div class="trend-value" style="color: ${color}">${lastPoint.value.toFixed(1)}%</div>
+                    `;
+
+                    // Store color for status stripe
+                    trendColors.push(color);
+                }
+
+                return { value: lastPoint.value, color: color };
+        }
+
+        // Create radar chart for energy mix
+        function createRadarChart(containerId, data, year) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            // Find data for the specified year
+            const yearData = data.find(d => d.Year === year);
+            if (!yearData) return;
+
+            const size = 70;
+            const radius = size / 2 - 12;
+            const center = size / 2;
+
+            const svg = d3.select(`#${containerId}`)
+                .append('svg')
+                .attr('width', size)
+                .attr('height', size);
+
+            // Data for radial bar chart with colors
+            const radarData = [
+                { axis: 'Fossil', value: parseFloat(yearData.perc_fossil) || 0, color: '#808080' },      // Grey
+                { axis: 'Renewable', value: parseFloat(yearData.perc_renewable) || 0, color: '#1a9850' }, // Green
+                { axis: 'Nuclear', value: parseFloat(yearData.perc_nuclear) || 0, color: '#9370DB' }      // Purple
+            ];
+
+            // Scale for values (0-100%)
+            const rScale = d3.scaleLinear()
+                .domain([0, 100])
+                .range([0, radius]);
+
+            // Angle for each axis
+            const angleSlice = (Math.PI * 2) / radarData.length;
+
+            // Draw axes (vertices)
+            radarData.forEach((d, i) => {
+                const angle = angleSlice * i - Math.PI / 2;
+                const x = center + Math.cos(angle) * radius;
+                const y = center + Math.sin(angle) * radius;
+
+                svg.append('line')
+                    .attr('x1', center)
+                    .attr('y1', center)
+                    .attr('x2', x)
+                    .attr('y2', y)
+                    .attr('stroke', '#999')
+                    .attr('stroke-width', 0.5);
+
+                // Add axis labels
+                const labelX = center + Math.cos(angle) * (radius + 8);
+                const labelY = center + Math.sin(angle) * (radius + 8);
+
+                svg.append('text')
+                    .attr('x', labelX)
+                    .attr('y', labelY)
+                    .attr('text-anchor', 'middle')
+                    .attr('alignment-baseline', 'middle')
+                    .attr('font-size', '6px')
+                    .attr('fill', '#666')
+                    .text(d.axis);
+            });
+
+            // Create bars for each energy type along their axes
+            const barThickness = 4; // Thickness of each bar in pixels
+
+            radarData.forEach((d, i) => {
+                const angle = angleSlice * i - Math.PI / 2;
+                const barLength = rScale(d.value);
+
+                // Calculate end position of the bar along the axis
+                const x2 = center + Math.cos(angle) * barLength;
+                const y2 = center + Math.sin(angle) * barLength;
+
+                // Draw the bar as a thick line along the axis
+                svg.append('line')
+                    .attr('x1', center)
+                    .attr('y1', center)
+                    .attr('x2', x2)
+                    .attr('y2', y2)
+                    .attr('stroke', d.color)
+                    .attr('stroke-width', barThickness)
+                    .attr('stroke-linecap', 'round')
+                    .attr('opacity', 0.9);
+            });
+
+            // Add year label at bottom
+            svg.append('text')
+                .attr('x', center)
+                .attr('y', size - 3)
+                .attr('text-anchor', 'middle')
+                .attr('alignment-baseline', 'middle')
+                .attr('font-size', '6px')
+                .attr('font-weight', 'bold')
+                .attr('fill', '#333')
+                .text(year);
+
+            // Return data for stripe calculation
+            return {
+                renewable: parseFloat(yearData.perc_renewable) || 0,
+                fossil: parseFloat(yearData.perc_fossil) || 0
+            };
+        }
+
+        // Create quadrant chart
+        function createQuadrantChart(containerId, readiness, vulnerability) {
+            const quadrantContainer = document.getElementById(containerId);
+            if (!quadrantContainer || isNaN(vulnerability) || isNaN(readiness)) return;
+
+            const size = 55;
+            const margin = { top: 2, right: 2, bottom: 8, left: 10 };
+            const width = size - margin.left - margin.right;
+            const height = size - margin.top - margin.bottom;
+
+            const svg = d3.select(`#${containerId}`)
+                .append('svg')
+                .attr('width', size)
+                .attr('height', size)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Scales
+            const xScale = d3.scaleLinear()
+                .domain([0, 1])
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, 1])
+                .range([height, 0]);
+
+            // Determine which quadrant the country is in
+            const isHighReadiness = readiness >= 0.5;
+            const isLowVulnerability = vulnerability <= 0.5;
+
+            // Define quadrant colors
+            const quadrantColors = {
+                topLeft: '#ff6b6b',      // red (high vulnerability, low readiness)
+                topRight: '#4dabf7',     // blue (high vulnerability, high readiness)
+                bottomLeft: '#ffd43b',   // yellow (low vulnerability, low readiness)
+                bottomRight: '#51cf66'   // green (low vulnerability, high readiness)
+            };
+
+            // Determine active quadrant
+            let activeQuadrant;
+            if (isLowVulnerability && !isHighReadiness) {
+                activeQuadrant = 'bottomLeft';
+            } else if (isLowVulnerability && isHighReadiness) {
+                activeQuadrant = 'bottomRight';
+            } else if (!isLowVulnerability && !isHighReadiness) {
+                activeQuadrant = 'topLeft';
+            } else {
+                activeQuadrant = 'topRight';
+            }
+
+            // Draw only the active quadrant with color
+            if (activeQuadrant === 'bottomLeft') {
+                svg.append('rect')
+                    .attr('x', 0)
+                    .attr('y', height/2)
+                    .attr('width', width/2)
+                    .attr('height', height/2)
+                    .attr('fill', quadrantColors.bottomLeft)
+                    .attr('opacity', 0.3);
+            } else if (activeQuadrant === 'bottomRight') {
+                svg.append('rect')
+                    .attr('x', width/2)
+                    .attr('y', height/2)
+                    .attr('width', width/2)
+                    .attr('height', height/2)
+                    .attr('fill', quadrantColors.bottomRight)
+                    .attr('opacity', 0.3);
+            } else if (activeQuadrant === 'topLeft') {
+                svg.append('rect')
+                    .attr('x', 0)
+                    .attr('y', 0)
+                    .attr('width', width/2)
+                    .attr('height', height/2)
+                    .attr('fill', quadrantColors.topLeft)
+                    .attr('opacity', 0.3);
+            } else if (activeQuadrant === 'topRight') {
+                svg.append('rect')
+                    .attr('x', width/2)
+                    .attr('y', 0)
+                    .attr('width', width/2)
+                    .attr('height', height/2)
+                    .attr('fill', quadrantColors.topRight)
+                    .attr('opacity', 0.3);
+            }
+
+            // Draw axes
+            svg.append('line')
+                .attr('x1', 0)
+                .attr('x2', width)
+                .attr('y1', height/2)
+                .attr('y2', height/2)
+                .attr('stroke', '#333')
+                .attr('stroke-width', 1.5);
+
+            svg.append('line')
+                .attr('x1', width/2)
+                .attr('x2', width/2)
+                .attr('y1', 0)
+                .attr('y2', height)
+                .attr('stroke', '#333')
+                .attr('stroke-width', 1.5);
+
+            // Plot country's position
+            svg.append('circle')
+                .attr('cx', xScale(readiness))
+                .attr('cy', yScale(vulnerability))
+                .attr('r', 1.5)
+                .attr('fill', 'black')
+                .attr('stroke', 'black')
+                .attr('stroke-width', 1);
+
+            // Add axis labels
+            svg.append('text')
+                .attr('x', width / 2)
+                .attr('y', height + 7)
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '5px')
+                .attr('fill', '#666')
+                .text('Readiness');
+
+            svg.append('text')
+                .attr('x', -height / 2)
+                .attr('y', -7)
+                .attr('text-anchor', 'middle')
+                .attr('transform', 'rotate(-90)')
+                .attr('font-size', '5px')
+                .attr('fill', '#666')
+                .text('Vulnerability');
+        }
+    </script>
+</body>
+</html>
